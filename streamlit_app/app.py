@@ -106,6 +106,21 @@ earlier detection would be worth. Full methodology: [`docs/architecture.md`](htt
         """
     )
 
+with st.expander("📖 Metric definitions"):
+    st.markdown(
+        """
+| Term | Definition |
+|---|---|
+| **Seller Health Score** | 0-100, weighted composite of defect rate, late shipment rate, return rate, cancellation rate, review signal, and recent anomaly penalty. A *state* metric — how healthy a seller is right now. |
+| **Health Tier** | Healthy (≥80) / Watch (≥60) / At_Risk (≥40) / Critical (<40), derived from Health Score. |
+| **Investigation Priority Score** | 0-100, per anomaly flag — combines severity, trailing-30-day GMV exposure, trailing-30-day order volume, and detection-method agreement count. A *queue-ranking* metric — which case to open first, independent of the seller's overall health state. |
+| **Severity** | Low/Medium/High/Critical, from the flag's combined statistical anomaly score. Only High/Critical flags open an investigation ticket. |
+| **Ensemble** | A flag promoted to "actionable" because ≥2 of 4 independent detection methods agree AND the signal persists across 2+ distinct days — see the Anomaly Intelligence tab for why the persistence rule exists. |
+| **SLA** | Severity-driven response deadline (Critical=24h, High=72h, Medium=120h, Low=240h) set when a ticket is created. |
+| **Peer cohort** | Sellers sharing the same tenure cohort × primary category × size segment — the baseline a seller is compared against besides its own history. |
+        """
+    )
+
 tab_overview, tab_risk, tab_anomaly, tab_investigate, tab_360 = st.tabs(
     ["🏠 Executive Overview", "⚠️ Seller Risk Intelligence", "🔍 Anomaly Intelligence",
      "📋 Investigation Operations", "👤 Seller 360"]
