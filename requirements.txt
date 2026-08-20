@@ -9,3 +9,4 @@ python-dotenv>=1.0
 streamlit>=1.30
 pytest>=7.4
 sqlparse>=0.4
+tabulate>=0.9

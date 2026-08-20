@@ -23,8 +23,8 @@ import pandas as pd
 from anomaly_engine.db import get_engine
 from anomaly_engine.metric_config import METRIC_ANOMALY_MAP, PRIMARY_METRICS, SUPPORTING_METRICS, severity_from_score
 
-Z_THRESHOLD = 2.5
-IQR_MULTIPLIER = 1.5
+Z_THRESHOLD = 3.0
+IQR_MULTIPLIER = 2.0
 ALL_METRICS = PRIMARY_METRICS + SUPPORTING_METRICS
 
 
@@ -95,7 +95,12 @@ def run_iqr(multiplier: float = IQR_MULTIPLIER) -> pd.DataFrame:
         engine,
     )
     rows = []
-    for metric in ALL_METRICS:
+    # order_volume is excluded here: it's a low-count integer (Micro sellers average
+    # <1 order/day), so its trailing IQR frequently collapses to a tiny fence and
+    # produces chance flags on ordinary Poisson variance. Z-score and CUSUM (which
+    # use std, not quantile spacing) handle this metric far more robustly — see
+    # docs/evaluation_report.md for the flag-volume evidence that motivated this.
+    for metric in [m for m in ALL_METRICS if m != "order_volume"]:
         anomaly_type, direction = METRIC_ANOMALY_MAP[metric]
         sub = wide[["seller_id", "metric_date", metric]].dropna(subset=[metric]).copy()
         sub = sub.sort_values(["seller_id", "metric_date"])

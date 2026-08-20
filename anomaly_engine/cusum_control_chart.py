@@ -21,7 +21,7 @@ from anomaly_engine.metric_config import METRIC_ANOMALY_MAP, PRIMARY_METRICS, SU
 
 ALL_METRICS = PRIMARY_METRICS + SUPPORTING_METRICS
 K_SLACK_STD = 0.5   # allowance (in std units) before deviations start accumulating
-H_THRESHOLD_STD = 5.0  # alarm threshold, in std units, on the cumulative sum
+H_THRESHOLD_STD = 8.0  # alarm threshold, in std units, on the cumulative sum
 
 
 def _cusum_series(values: np.ndarray, direction: str) -> tuple[np.ndarray, float, float]:

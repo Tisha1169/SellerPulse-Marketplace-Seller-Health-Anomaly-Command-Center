@@ -17,7 +17,20 @@ more urgent situation than any one metric being off.
 All four methods' individual flag rows are still written to fact_anomaly_flags
 (the audit trail); only rows with method='Ensemble' are eligible to spawn
 investigation tickets (investigation/queue_builder.py enforces this).
+
+Persistence requirement: a candidate is only promoted if the SAME (seller_id,
+anomaly_type) also has at least one other flag (any method) within +/-3 days.
+This exists because of a real finding during evaluation, not a theoretical
+concern: at ~5.16M independent daily metric tests (2000 sellers x ~285 days x
+9 metrics), even a well-calibrated 3-sigma one-day threshold produces thousands
+of chance exceedances purely from multiple testing — the classic base-rate
+problem (see docs/evaluation_report.md for the numbers). Requiring the signal to
+persist across 2+ distinct days is a standard production mitigation: genuine
+deterioration is rarely a single-day blip, while chance noise almost never
+repeats on the next day for the same seller and metric.
 """
+import bisect
+
 import pandas as pd
 
 from anomaly_engine.db import get_engine
@@ -28,6 +41,7 @@ from anomaly_engine.metric_config import severity_from_score
 
 MIN_METHOD_VOTES = 2
 MULTI_METRIC_DISTINCT_TYPE_THRESHOLD = 3
+PERSISTENCE_WINDOW_DAYS = 3
 
 
 def collect_all_flags() -> pd.DataFrame:
@@ -63,6 +77,31 @@ def build_ensemble(all_flags: pd.DataFrame) -> pd.DataFrame:
     votes = votes.merge(distinct_types, on=["seller_id", "flag_date"], how="left")
 
     ensemble = votes[votes["n_methods"] >= MIN_METHOD_VOTES].copy()
+
+    # Step 3: persistence filter — see module docstring for why this exists
+    dates_by_key = (
+        all_flags.groupby(["seller_id", "anomaly_type"])["flag_date"]
+        .apply(lambda s: sorted(s.unique()))
+        .to_dict()
+    )
+
+    def _has_nearby_flag(row):
+        key = (row["seller_id"], row["anomaly_type"])
+        all_dates = dates_by_key.get(key, [])
+        if len(all_dates) < 2:
+            return False
+        target = row["flag_date"]
+        idx = bisect.bisect_left(all_dates, target)
+        for candidate_idx in (idx - 1, idx, idx + 1):
+            if 0 <= candidate_idx < len(all_dates):
+                d = all_dates[candidate_idx]
+                if d != target and abs((d - target).days) <= PERSISTENCE_WINDOW_DAYS:
+                    return True
+        return False
+
+    ensemble["is_persistent"] = ensemble.apply(_has_nearby_flag, axis=1)
+    ensemble = ensemble[ensemble["is_persistent"]].drop(columns="is_persistent")
+
     ensemble.loc[ensemble["n_distinct_types"] >= MULTI_METRIC_DISTINCT_TYPE_THRESHOLD, "anomaly_type"] = (
         "Multi_Metric_Deterioration"
     )
