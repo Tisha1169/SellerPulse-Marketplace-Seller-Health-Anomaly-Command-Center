@@ -1,0 +1,11 @@
+pandas>=2.0
+numpy>=1.24
+Faker>=22.0
+SQLAlchemy>=2.0
+psycopg2-binary>=2.9
+scikit-learn>=1.3
+statsmodels>=0.14
+python-dotenv>=1.0
+streamlit>=1.30
+pytest>=7.4
+sqlparse>=0.4

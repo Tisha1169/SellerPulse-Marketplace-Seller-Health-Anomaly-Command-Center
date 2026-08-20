@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.log
+.DS_Store
+data_generator/output/
+*.csv
+!docs/**/*.csv
+.pytest_cache/
+.ipynb_checkpoints/
+pgdata/
+*.egg-info/
+.coverage
+htmlcov/
