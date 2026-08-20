@@ -14,9 +14,18 @@ SEGMENT_SKU_WEIGHT = {"Micro": 1, "Small": 4, "Mid": 15, "Power": 60}
 
 
 def generate_products(sellers_df: pd.DataFrame, n_products: int = cfg.N_PRODUCTS) -> pd.DataFrame:
+    seller_ids_all = sellers_df["seller_id"].to_numpy()
     weights = sellers_df["seller_segment"].map(SEGMENT_SKU_WEIGHT).to_numpy(dtype=float)
     weights = weights / weights.sum()
-    seller_ids_for_products = rng.choice(sellers_df["seller_id"].to_numpy(), size=n_products, p=weights)
+
+    # Guarantee every seller has >=1 product (a seller with zero SKUs can never
+    # generate an order), then fill the remainder via weighted sampling.
+    n_guaranteed = len(seller_ids_all)
+    n_remaining = max(n_products - n_guaranteed, 0)
+    remaining_ids = rng.choice(seller_ids_all, size=n_remaining, p=weights)
+    seller_ids_for_products = np.concatenate([seller_ids_all, remaining_ids])
+    rng.shuffle(seller_ids_for_products)
+    n_products = len(seller_ids_for_products)
 
     seller_category_map = sellers_df.set_index("seller_id")["primary_category"].to_dict()
     seller_signup_map = sellers_df.set_index("seller_id")["signup_date"].to_dict()

@@ -75,7 +75,7 @@ SUBCATEGORIES = {
 # Micro sellers are numerous but low volume; Power sellers are few but huge.
 # ------------------------------------------------------------------
 SELLER_SEGMENT_WEIGHTS = {"Micro": 0.50, "Small": 0.30, "Mid": 0.15, "Power": 0.05}
-SELLER_SEGMENT_DAILY_ORDER_LAMBDA = {"Micro": 1.2, "Small": 6, "Mid": 25, "Power": 120}
+SELLER_SEGMENT_DAILY_ORDER_LAMBDA = {"Micro": 0.7, "Small": 3.0, "Mid": 12.0, "Power": 55.0}
 
 SELLER_TENURE_COHORT_WEIGHTS = {"New": 0.25, "Growing": 0.30, "Established": 0.30, "Veteran": 0.15}
 TENURE_COHORT_DAYS_RANGE = {
