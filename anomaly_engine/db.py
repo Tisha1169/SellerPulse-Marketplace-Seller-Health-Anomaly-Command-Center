@@ -1,7 +1,10 @@
 """Shared DB connection helper for the anomaly engine and scoring modules."""
 import os
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
+
+load_dotenv()
 
 _engine = None
 
