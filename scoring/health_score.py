@@ -50,10 +50,20 @@ def _tier(score: float) -> str:
 
 
 def _normalize_bad_is_high(series: pd.Series) -> pd.Series:
-    """0 -> 100 (healthy), ceiling (95th pct) or worse -> 0 (unhealthy)."""
+    """0 -> 100 (healthy), ceiling (95th pct) or worse -> 0 (unhealthy).
+
+    Rate metrics like defect_rate are heavily zero-inflated (most seller-days
+    have zero defects), so the 95th percentile itself is often exactly 0. Falling
+    back to "everyone scores 100" in that case would be wrong — it would also
+    zero-rate the rare seller-day that genuinely has a bad value. Instead fall
+    back to the series' own max as the ceiling; only return the trivial all-100
+    result if literally every value is 0.
+    """
     ceiling = series.quantile(PERCENTILE_CEILING)
     if ceiling <= 0:
-        return pd.Series(100.0, index=series.index)
+        ceiling = series.max()
+        if ceiling <= 0:
+            return pd.Series(100.0, index=series.index)
     score = 100 * (1 - (series.clip(lower=0, upper=ceiling) / ceiling))
     return score.clip(0, 100)
 

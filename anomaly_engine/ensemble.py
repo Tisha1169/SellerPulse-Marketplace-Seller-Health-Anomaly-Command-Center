@@ -77,6 +77,15 @@ def build_ensemble(all_flags: pd.DataFrame) -> pd.DataFrame:
     votes = votes.merge(distinct_types, on=["seller_id", "flag_date"], how="left")
 
     ensemble = votes[votes["n_methods"] >= MIN_METHOD_VOTES].copy()
+    empty_cols = [
+        "seller_id", "flag_date", "anomaly_type", "affected_metric", "baseline_value", "observed_value",
+        "deviation_abs", "deviation_pct", "method", "anomaly_score", "severity", "reason_code", "explanation",
+    ]
+    if ensemble.empty:
+        # DataFrame.apply(axis=1) on a zero-row frame doesn't return a Series
+        # (nothing to infer a return dtype from), so the persistence-filter step
+        # below would blow up assigning its result — short-circuit instead.
+        return pd.DataFrame(columns=empty_cols)
 
     # Step 3: persistence filter — see module docstring for why this exists
     dates_by_key = (
@@ -101,6 +110,10 @@ def build_ensemble(all_flags: pd.DataFrame) -> pd.DataFrame:
 
     ensemble["is_persistent"] = ensemble.apply(_has_nearby_flag, axis=1)
     ensemble = ensemble[ensemble["is_persistent"]].drop(columns="is_persistent")
+    if ensemble.empty:
+        # same zero-row apply() hazard as above — the persistence filter can
+        # legitimately reject every candidate (e.g. all single isolated days)
+        return pd.DataFrame(columns=empty_cols)
 
     ensemble.loc[ensemble["n_distinct_types"] >= MULTI_METRIC_DISTINCT_TYPE_THRESHOLD, "anomaly_type"] = (
         "Multi_Metric_Deterioration"
