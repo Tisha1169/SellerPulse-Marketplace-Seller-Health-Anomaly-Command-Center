@@ -13,3 +13,4 @@ pgdata/
 *.egg-info/
 .coverage
 htmlcov/
+.streamlit/secrets.toml
