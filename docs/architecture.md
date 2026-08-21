@@ -12,9 +12,9 @@ flowchart TD
     F --> G[(fact_anomaly_flags)]
     G --> H[Scoring<br/>Health Score · Priority Score]
     G --> I[Investigation Queue<br/>tickets + SLA]
-    H --> J[Power BI Dashboard]
+    H --> J[Streamlit Dashboard<br/>5 tabs, live + deployable]
     I --> J
-    I --> K[Streamlit Console]
+    J -.optional spec only, see docs/powerbi_spec.md.-> K[Power BI]
     L[pipeline/run_daily_pipeline.py] -.orchestrates.-> A
     L -.-> B
     L -.-> D

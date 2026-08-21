@@ -178,7 +178,7 @@ Ranked by leverage, from `docs/portfolio_presentation.md`:
 
 PostgreSQL · Python (pandas, NumPy, Faker, SQLAlchemy, scikit-learn, statsmodels) · SQL (CTEs, window functions, LAG/LEAD, rolling stats) · Streamlit + Plotly · Docker.
 
-*(Power BI was evaluated and deliberately not built as a live artifact — no macOS-native Power BI Desktop, and a live Streamlit app better serves a public portfolio demo. A full Power BI page/data-model/DAX-measure spec is documented for anyone building the `.pbix` later — see `docs/architecture.md`.)*
+*(Power BI was evaluated and deliberately not built as a live artifact — no macOS-native Power BI Desktop, and a live Streamlit app better serves a public portfolio demo. A full Power BI page structure, data model, relationships, and DAX measures are documented for anyone building the `.pbix` later — see [`docs/powerbi_spec.md`](docs/powerbi_spec.md).)*
 
 ## Repo layout
 
