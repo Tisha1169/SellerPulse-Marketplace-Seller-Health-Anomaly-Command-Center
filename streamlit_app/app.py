@@ -44,6 +44,36 @@ def engine():
     return get_engine()
 
 
+def _check_database_connection():
+    """
+    Fails loudly but cleanly instead of letting every query on the page throw
+    its own raw SQLAlchemy traceback. The most common deployment failure mode
+    is a missing/wrong DATABASE_URL secret on Streamlit Community Cloud — this
+    turns that into one readable message instead of a wall of stack traces
+    from five different tabs, and never echoes the connection string itself
+    (which would leak credentials into the rendered page).
+    """
+    try:
+        with engine().connect() as conn:
+            conn.exec_driver_sql("SELECT 1")
+    except Exception as exc:
+        # Only the exception TYPE is shown, never str(exc) — some drivers
+        # (psycopg2 included) embed the DSN, host, or even the password in
+        # their error text, and this message renders directly on the page.
+        st.error(
+            "**Can't connect to the database.**\n\n"
+            "This app needs `DATABASE_URL` set — locally via `.env` "
+            "(`POSTGRES_*` variables) or `.streamlit/secrets.toml`, or on "
+            "Streamlit Community Cloud via the app's **Secrets** panel. "
+            "See `docs/deployment.md` for exact setup steps.\n\n"
+            f"Error type: `{type(exc).__name__}` (check server logs for the full trace)."
+        )
+        st.stop()
+
+
+_check_database_connection()
+
+
 def run_query(sql: str, params: dict = None) -> pd.DataFrame:
     return pd.read_sql(sql, engine(), params=params or {})
 

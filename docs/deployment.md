@@ -36,6 +36,40 @@ real numbers from that run. Zero dashboard functionality is lost; every tab
 was re-verified against the reduced database in the browser before writing
 this doc.
 
+## Before deploying: verify locally with pinned dependencies
+
+`requirements.txt` pins exact versions (not `>=` ranges) so the cloud build
+reproduces the environment this was actually tested against, rather than
+resolving to whatever's newest on deploy day. Verify that pin set actually
+works end-to-end in a completely isolated environment before pushing —
+don't rely on your existing dev `.venv`, which may have picked up extra
+packages over time that mask a missing dependency:
+
+```bash
+python3 -m venv /tmp/clean_check && source /tmp/clean_check/bin/activate
+pip install -r requirements.txt
+pytest tests/                              # must be 35/35
+streamlit run streamlit_app/app.py         # confirm it boots with no import errors
+deactivate && rm -rf /tmp/clean_check
+```
+
+This also exercises the same import paths (`sys.path.insert` in
+`streamlit_app/app.py`, package resolution for `anomaly_engine`/`scoring`/etc.)
+that Streamlit Community Cloud's build will use — a clean venv is the closest
+local approximation of that build environment.
+
+### Connection health check
+
+`streamlit_app/app.py` runs a `SELECT 1` against the configured database
+before rendering anything else. If it fails, the app shows one readable error
+message (which `DATABASE_URL` source to check, and the exception *type* only —
+never the raw exception text, since some drivers embed the DSN/host/password
+in their error strings) instead of five different tabs each throwing their own
+raw traceback. This is what a misconfigured or missing `DATABASE_URL` secret
+on Streamlit Community Cloud will look like to anyone opening the deployed
+app — verified by pointing the app at a deliberately unreachable database and
+confirming the clean error renders instead of a stack trace.
+
 ## Step 1 — Provision a free cloud Postgres
 
 Any of these work (all have historically offered a free tier comfortably
