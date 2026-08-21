@@ -498,7 +498,14 @@ elif page == "Anomaly Intelligence":
 # PAGE — Investigation Operations
 # ============================================================
 elif page == "Investigation Operations":
-    ops_kpi = run_query(
+    # KPI/chart queries below are cached (5 min TTL) — they're aggregate reads,
+    # not the interactive queue itself, and update_ticket() already calls
+    # st.cache_data.clear() after a write so a status change is reflected on
+    # the very next rerun rather than waiting out the TTL. This cuts a
+    # multi-second-latency round trip to the (Singapore) Neon database down
+    # to near-zero on every page revisit within the cache window — the
+    # dominant cause of the page-load latency reported after deployment.
+    ops_kpi = cached_query(
         """
         SELECT
           count(*) AS total_tickets,
@@ -524,7 +531,7 @@ elif page == "Investigation Operations":
     wc1, wc2 = st.columns(2)
     with wc1:
         st.markdown("### Priority distribution (open tickets)")
-        open_tix = run_query(
+        open_tix = cached_query(
             "SELECT priority_score, severity FROM core.investigation_tickets "
             "WHERE status NOT IN ('Resolved','False_Positive','Escalated')"
         )
@@ -534,7 +541,7 @@ elif page == "Investigation Operations":
             st.plotly_chart(style_fig(fig), width="stretch")
     with wc2:
         st.markdown("### Investigator workload")
-        workload = run_query(
+        workload = cached_query(
             "SELECT assigned_investigator, count(*) AS n FROM core.investigation_tickets "
             "WHERE assigned_investigator IS NOT NULL GROUP BY assigned_investigator ORDER BY n DESC"
         )
@@ -607,28 +614,36 @@ elif page == "Seller 360":
         key="seller_360_select",
     )
 
-    health_hist = run_query(
+    # Cached (5 min TTL) — Seller 360 fires 6 sequential queries per seller
+    # selection, and this page was the slowest to load on the deployed app
+    # (each round trip crosses to the Neon database in ap-southeast-1). None
+    # of this data is written to from anywhere in the app (ticket write-back
+    # happens on the Investigation Operations page, not here), so a short
+    # cache costs nothing in correctness and turns a repeat visit to the same
+    # seller within the TTL window into a near-instant render instead of 6
+    # more network round trips.
+    health_hist = cached_query(
         "SELECT score_date, health_score, health_tier FROM core.seller_health_score "
         "WHERE seller_id = %(sid)s ORDER BY score_date",
         {"sid": int(seller_label)},
     )
-    metrics_hist = run_query(
+    metrics_hist = cached_query(
         "SELECT metric_date, defect_rate, late_shipment_rate, return_rate, avg_rating, order_volume, gmv "
         "FROM core.fact_seller_daily_metrics WHERE seller_id = %(sid)s ORDER BY metric_date",
         {"sid": int(seller_label)},
     )
-    seller_flags = run_query(
+    seller_flags = cached_query(
         "SELECT flag_date, anomaly_type, affected_metric, method, severity, anomaly_score, explanation "
         "FROM core.fact_anomaly_flags WHERE seller_id = %(sid)s AND method = 'Ensemble' ORDER BY flag_date DESC",
         {"sid": int(seller_label)},
     )
-    seller_tickets = run_query(
+    seller_tickets = cached_query(
         "SELECT case_id, detected_date, severity, priority_score, status, assigned_investigator, "
         "root_cause_category, resolution, is_sla_breached "
         "FROM core.investigation_tickets WHERE seller_id = %(sid)s ORDER BY detected_date DESC",
         {"sid": int(seller_label)},
     )
-    seller_info = run_query(
+    seller_info = cached_query(
         "SELECT * FROM core.dim_seller WHERE seller_id = %(sid)s", {"sid": int(seller_label)}
     ).iloc[0]
 
@@ -672,7 +687,7 @@ elif page == "Seller 360":
         st.dataframe(seller_tickets, width="stretch", hide_index=True)
 
     st.markdown("### Peer comparison (latest day)")
-    peer_comparison = run_query(
+    peer_comparison = cached_query(
         """
         SELECT metric_name, observed_value, cohort_mean, cohort_zscore
         FROM core.seller_metric_cohort_baseline

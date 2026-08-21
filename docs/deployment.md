@@ -133,6 +133,36 @@ dataset before this doc was written):
 - Seller 360: seller selector populates, all sections render for a sample
   seller.
 
+## Performance: why the free-tier demo isn't instant, and what was done about it
+
+Measured directly against the live Neon database, not guessed: each individual
+query costs **~460ms in pure network round-trip latency**, even on an already-
+warm connection — Neon's ap-southeast-1 (Singapore) region plus Streamlit
+Community Cloud's own hosting region adds real distance. Seller 360 fires 6
+sequential queries per seller selected, which measured at **4.4s on a cold
+connection**. Two separate effects are at play:
+
+1. **Neon's free-tier autosuspend** — the database "sleeps" after a period of
+   inactivity; the first query after idle pays a compute cold-start cost on
+   top of normal latency. This is inherent to the free tier and not something
+   application code can eliminate — a paid always-on Neon tier (or any
+   always-on Postgres) removes it entirely.
+2. **Redundant round trips on repeat views** — this WAS fixable, and was
+   fixed: every read-only aggregate/chart query across all 5 pages (previously
+   a mix of cached and uncached) now goes through `cached_query()` (5-minute
+   TTL), including all 6 of Seller 360's per-seller queries and Investigation
+   Operations' KPI/chart queries. The one query that stays deliberately
+   uncached is the Investigation Operations ticket queue itself — the one
+   view a user directly acts on, which must reflect a status update on the
+   very next rerun (`update_ticket()` calls `st.cache_data.clear()` after every
+   write specifically so this stays correct).
+
+Net effect: the *first* view of any page/seller within a 5-minute window still
+pays the real Neon network cost (and, occasionally, the autosuspend cold-start
+on top of it) — that part is a genuine free-tier trade-off, stated plainly
+rather than papered over. Every *repeat* view within that window is now
+near-instant, since it never leaves the Streamlit Cloud process.
+
 ## Local development is unaffected
 
 `docker compose up -d` + `.env` (`POSTGRES_HOST=localhost`, etc.) continues to
