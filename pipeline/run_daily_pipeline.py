@@ -52,9 +52,11 @@ def stage_generate():
 def stage_load():
     from database.seed_load import run_ddl, load_csvs
     from database.seed_load import create_engine, DB_URL
+    from pipeline.populate_dataset_summary import populate as populate_summary
     engine = create_engine(DB_URL)
     run_ddl(engine)
     load_csvs(engine)
+    populate_summary()
 
 
 @_stage("3/8 data quality checks")

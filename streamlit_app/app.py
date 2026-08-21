@@ -130,16 +130,20 @@ tab_overview, tab_risk, tab_anomaly, tab_investigate, tab_360 = st.tabs(
 # TAB 1 — Executive Overview
 # ============================================================
 with tab_overview:
-    counts = cached_query(
-        """
-        SELECT
-          (SELECT count(*) FROM core.dim_seller) AS total_sellers,
-          (SELECT count(*) FROM core.fact_orders) AS total_orders,
-          (SELECT count(*) FROM core.fact_shipments) AS total_shipments,
-          (SELECT count(*) FROM core.fact_returns) AS total_returns,
-          (SELECT count(*) FROM core.fact_reviews) AS total_reviews
-        """
-    ).iloc[0]
+    # Reads core.dataset_summary (a tiny precomputed table) rather than running
+    # count(*) against fact_orders/fact_shipments/fact_returns/fact_reviews —
+    # those four raw fact tables are ~1.07GB combined and the dashboard never
+    # reads a single row from them, only these headline counts. See
+    # database/ddl/05_dataset_summary.sql and docs/deployment.md.
+    summary_rows = cached_query("SELECT metric_name, metric_value FROM core.dataset_summary")
+    summary = summary_rows.set_index("metric_name")["metric_value"].to_dict()
+    counts = {
+        "total_sellers": summary.get("total_sellers", 0),
+        "total_orders": summary.get("total_orders", 0),
+        "total_shipments": summary.get("total_shipments", 0),
+        "total_returns": summary.get("total_returns", 0),
+        "total_reviews": summary.get("total_reviews", 0),
+    }
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Total Sellers", f"{counts['total_sellers']:,}")
